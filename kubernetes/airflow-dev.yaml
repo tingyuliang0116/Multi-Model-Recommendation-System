@@ -1,4 +1,11 @@
-# Enable the webserver and scheduler
+# kubernetes/airflow/airflow-values.yaml
+
+# General Airflow Settings
+defaultAirflowRepository: apache/airflow
+defaultAirflowTag: 2.9.2 # Using Airflow 2.9.2
+executor: KubernetesExecutor
+
+# Webserver Configuration (for Airflow UI)
 webserver:
   enabled: true
   service:
@@ -7,12 +14,13 @@ webserver:
       - name: web
         port: 8080
         targetPort: 8080
-        nodePort: 30000 # You can pick a different port if 30000 is in use
+        nodePort: 30000
 
+# Scheduler Configuration
 scheduler:
   enabled: true
 
-# Use a simple PostgreSQL database for metadata
+# PostgreSQL Database Configuration
 postgresql:
   enabled: true
   auth:
@@ -22,33 +30,52 @@ postgresql:
   persistence:
     enabled: true
     size: 5Gi
+    storageClassName: standard
 
-# Disable Redis and Celery for simplicity in local setup
+# Redis Configuration (Disabled)
 redis:
   enabled: false
-executor: KubernetesExecutor
 
-# *** ADD THESE LINES FOR EXTRA PYTHON PACKAGES ***
-# These packages will be installed into the Airflow pods (webserver, scheduler, workers/tasks)
-# ensuring your DAG code has access to them.
-extraPipPackages:
-  - minio==7.1.1 # Specify a version if you want, or just 'minio'
-  - pandas==2.2.2 # Specify a version if you want, or just 'pandas'
-# If you also need a specific version of requests or other packages that MinIO/Pandas
-# might depend on, you can add them here.
+# --- CRITICAL: GIT SYNC CONFIGURATION ---
+gitSync:
+  enabled: true # Enable the Git Sync sidecar
+  repo: "<YOUR_GIT_REPO_HTTPS_URL>" # !!! REPLACE THIS WITH YOUR ACTUAL REPO URL (e.g., https://github.com/YourUsername/YourRepo.git) !!!
+  branch: "main" # Or the branch where your DAGs are
+  rev: "HEAD" # Pull the latest commit
+  period: 10 # Sync every 10 seconds for quick updates
+  subPath: "airflow/dags" # The path within your Git repo where your DAGs are located
+  # For private repos, you'd add:
+  # secret: airflow-git-secret # This would reference a Kubernetes Secret with your Git credentials
 
-# Allow local Dags folder mounting (if you want to manage DAGs directly on host)
+# --- IMPORTANT: DISABLE DAGS PERSISTENCE VIA HOSTPATH ---
+# Git Sync will manage the DAGs volume itself, typically as an emptyDir or local PVC for each pod.
 dags:
   persistence:
-    enabled: true
-    size: 1Gi
+    enabled: false # VERY IMPORTANT: Disable this to prevent hostPath conflicts.
+    # hostPath: "..." # Ensure this is commented out or removed
+    # size: ...
+    # accessMode: ...
 
-# Configure logging to stay within the cluster
+# Logging Configuration
 logs:
   persistence:
     enabled: true
     size: 10Gi
+    storageClassName: standard
 
-# Ensure this image is pulled correctly by Minikube
-defaultAirflowRepository: apache/airflow
-defaultAirflowTag: 2.9.2 # Use a specific, recent version
+# Extra Python Packages (Confirmed working via manual install)
+extraPipPackages:
+  - minio
+  - pandas
+  - s3fs
+  - smart_open
+  - fsspec # Explicitly include fsspec, it caused version conflicts earlier
+
+# Triggerer configuration
+triggerer:
+  enabled: true
+  replicas: 1
+
+# StatsD
+statsd:
+  enabled: true

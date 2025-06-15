@@ -7,6 +7,7 @@ metadata:
     app: mlflow
 
 ---
+
 # 2. MLflow Deployment Definition
 apiVersion: apps/v1
 kind: Deployment
@@ -26,39 +27,31 @@ spec:
         app: mlflow
     spec:
       containers:
-        - name: mlflow
-          image: ghcr.io/mlflow/mlflow:latest
-          command: ["mlflow"]
-          args:
-            [
-              "server",
-              "--host",
-              "0.0.0.0",
-              "--port",
-              "5000",
-              "--backend-store-uri",
-              "sqlite:///mlruns.db",
-              "--default-artifact-root",
-              "s3://mlflow-artifacts",
-            ]
-          env:
-            - name: AWS_ACCESS_KEY_ID
-              value: "minioadmin"
-            - name: AWS_SECRET_ACCESS_KEY
-              value: "minioadmin"
-            - name: MLFLOW_S3_ENDPOINT_URL
-              value: "http://minio-service.minio:9000"
-          ports:
-            - containerPort: 5000
-              name: http
-          volumeMounts:
-            - name: mlflow-db-storage
-              mountPath: "/mlruns.db-data"
-      volumes:
+      - name: mlflow
+        image: ghcr.io/mlflow/mlflow:latest
+        command: ["mlflow"]
+        args: ["server", "--host", "0.0.0.0", "--port", "5000",
+               "--backend-store-uri", "sqlite:///mlruns.db",
+               "--default-artifact-root", "s3://mlflow-artifacts"]
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          value: "minioadmin"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "minioadmin"
+        - name: MLFLOW_S3_ENDPOINT_URL
+          value: "http://minio-service.minio:9000"
+        ports:
+        - containerPort: 5000
+          name: http
+        volumeMounts:
         - name: mlflow-db-storage
-          emptyDir: {}
+          mountPath: "/mlruns.db-data"
+      volumes:
+      - name: mlflow-db-storage
+        emptyDir: {}
 
 ---
+
 # 3. MLflow Service Definition
 apiVersion: v1
 kind: Service
