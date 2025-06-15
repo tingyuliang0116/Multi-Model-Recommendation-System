@@ -11,7 +11,7 @@ metadata:
 # The `spec.containers[0].args` contains the command run on the pod
 # The `/data` directory corresponds to the `spec.containers[0].volumeMounts[0].mountPath`
 # That mount path corresponds to a Kubernetes HostPath which binds `/data` to a local drive or volume on the worker node where the pod runs
-# 
+#
 apiVersion: v1
 kind: Pod
 metadata:
@@ -21,18 +21,18 @@ metadata:
   namespace: minio-dev # Change this value to match the namespace metadata.name
 spec:
   containers:
-  - name: minio
-    image: quay.io/minio/minio:latest
-    command:
-    - /bin/bash
-    - -c
-    args: 
-    - minio server /data --console-address :9001
-    volumeMounts:
-    - mountPath: /data
-      name: localvolume # Corresponds to the `spec.volumes` Persistent Volume
+    - name: minio
+      image: quay.io/minio/minio:latest
+      command:
+        - /bin/bash
+        - -c
+      args:
+        - minio server /data --console-address :9001
+      volumeMounts:
+        - mountPath: /data
+          name: localvolume # Corresponds to the `spec.volumes` Persistent Volume
   volumes:
-  - name: localvolume
-    hostPath: # MinIO generally recommends using locally-attached volumes
-      path: /mnt/disk1/data # Specify a path to a local drive or volume on the Kubernetes worker node
-      type: DirectoryOrCreate # The path to the last directory must exist
+    - name: localvolume
+      hostPath: # MinIO generally recommends using locally-attached volumes
+        path: /mnt/disk1/data # Specify a path to a local drive or volume on the Kubernetes worker node
+        type: DirectoryOrCreate # The path to the last directory must exist

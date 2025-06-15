@@ -15,35 +15,39 @@ scheduler:
 # Use a simple PostgreSQL database for metadata
 postgresql:
   enabled: true
-  # *** CORRECTED AUTHENTICATION PARAMETERS BELOW ***
   auth:
-    username: airflow # This will be the user created for Airflow
-    password: airflow_password # Change this for better security!
-    database: airflow # The database Airflow will connect to
-
-  # If you wanted to set the 'postgres' user's password (less common for Airflow itself)
-  # postgresql.auth.postgresPassword: "your_postgres_root_password"
-
+    username: airflow
+    password: airflow_password
+    database: airflow
   persistence:
     enabled: true
-    size: 5Gi # Adjust storage size if needed
+    size: 5Gi
 
 # Disable Redis and Celery for simplicity in local setup
 redis:
   enabled: false
-executor: KubernetesExecutor # Use KubernetesExecutor to run tasks as pods
+executor: KubernetesExecutor
+
+# *** ADD THESE LINES FOR EXTRA PYTHON PACKAGES ***
+# These packages will be installed into the Airflow pods (webserver, scheduler, workers/tasks)
+# ensuring your DAG code has access to them.
+extraPipPackages:
+  - minio==7.1.1 # Specify a version if you want, or just 'minio'
+  - pandas==2.2.2 # Specify a version if you want, or just 'pandas'
+# If you also need a specific version of requests or other packages that MinIO/Pandas
+# might depend on, you can add them here.
 
 # Allow local Dags folder mounting (if you want to manage DAGs directly on host)
 dags:
   persistence:
     enabled: true
-    size: 1Gi # Size for your DAGs folder
+    size: 1Gi
 
 # Configure logging to stay within the cluster
 logs:
   persistence:
     enabled: true
-    size: 10Gi # Size for logs
+    size: 10Gi
 
 # Ensure this image is pulled correctly by Minikube
 defaultAirflowRepository: apache/airflow
