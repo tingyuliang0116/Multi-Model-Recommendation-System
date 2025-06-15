@@ -39,7 +39,7 @@ redis:
 # --- CRITICAL: GIT SYNC CONFIGURATION ---
 gitSync:
   enabled: true # Enable the Git Sync sidecar
-  repo: "<YOUR_GIT_REPO_HTTPS_URL>" # !!! REPLACE THIS WITH YOUR ACTUAL REPO URL (e.g., https://github.com/YourUsername/YourRepo.git) !!!
+  repo: "https://github.com/tingyuliang0116/Multi-Model-Recommendation-System.git" # !!! REPLACE THIS WITH YOUR ACTUAL REPO URL (e.g., https://github.com/YourUsername/YourRepo.git) !!!
   branch: "main" # Or the branch where your DAGs are
   rev: "HEAD" # Pull the latest commit
   period: 10 # Sync every 10 seconds for quick updates
