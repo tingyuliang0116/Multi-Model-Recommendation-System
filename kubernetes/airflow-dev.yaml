@@ -1,0 +1,50 @@
+# Enable the webserver and scheduler
+webserver:
+  enabled: true
+  service:
+    type: NodePort
+    ports:
+      - name: web
+        port: 8080
+        targetPort: 8080
+        nodePort: 30000 # You can pick a different port if 30000 is in use
+
+scheduler:
+  enabled: true
+
+# Use a simple PostgreSQL database for metadata
+postgresql:
+  enabled: true
+  # *** CORRECTED AUTHENTICATION PARAMETERS BELOW ***
+  auth:
+    username: airflow # This will be the user created for Airflow
+    password: airflow_password # Change this for better security!
+    database: airflow # The database Airflow will connect to
+
+  # If you wanted to set the 'postgres' user's password (less common for Airflow itself)
+  # postgresql.auth.postgresPassword: "your_postgres_root_password"
+
+  persistence:
+    enabled: true
+    size: 5Gi # Adjust storage size if needed
+
+# Disable Redis and Celery for simplicity in local setup
+redis:
+  enabled: false
+executor: KubernetesExecutor # Use KubernetesExecutor to run tasks as pods
+
+# Allow local Dags folder mounting (if you want to manage DAGs directly on host)
+dags:
+  persistence:
+    enabled: true
+    size: 1Gi # Size for your DAGs folder
+
+# Configure logging to stay within the cluster
+logs:
+  persistence:
+    enabled: true
+    size: 10Gi # Size for logs
+
+# Ensure this image is pulled correctly by Minikube
+defaultAirflowRepository: apache/airflow
+defaultAirflowTag: 2.9.2 # Use a specific, recent version
