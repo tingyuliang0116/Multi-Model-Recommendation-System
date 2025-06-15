@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mlflow
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow-deployment
+  namespace: mlflow
+spec:
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+      - name: mlflow
+        image: ghcr.io/mlflow/mlflow:latest # Or a specific version
+        command: ["mlflow"]
+        args: ["server", "--host", "0.0.0.0", "--port", "5000",
+               "--backend-store-uri", "sqlite:///mlruns.db", # For simplicity, use sqlite. For production, connect to a real DB.
+               "--default-artifact-root", "s3://mlflow-artifacts"] # This will connect to our MinIO
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          value: "minioadmin"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "minioadmin"
+        - name: MLFLOW_S3_ENDPOINT_URL # Point to MinIO
+          value: "http://minio-service.minio:9000" # Use the MinIO service name within K8s
+        ports:
+        - containerPort: 5000
+          name: http
+        volumeMounts: # For sqlite db
+        - name: mlflow-db-storage
+          mountPath: "/mlruns.db-data"
+      volumes:
+      - name: mlflow-db-storage
+        emptyDir: {} # For a real project, use PersistentVolumeClaims
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow-service
+  namespace: mlflow
+spec:
+  selector:
+    app: mlflow
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+  type: NodePort # Use NodePort for easy local access
