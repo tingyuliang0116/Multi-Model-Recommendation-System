@@ -192,3 +192,13 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfplan
+terraform.tfstate
+terraform.tfstate.backup
+crash.log
+*.tfvars
+.DS_Store # Mac specific

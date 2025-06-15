@@ -1,5 +1,15 @@
 # terraform/main.tf
 
+terraform {
+  required_version = ">= 1.2.0" # Adjust as needed, check latest stable
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.52.0" # Use a compatible version, e.g., current stable is around 5.x
+    }
+  }
+}
+
 # Configure the AWS Provider
 provider "aws" {
   region = var.aws_region
@@ -119,11 +129,18 @@ resource "aws_security_group" "mlops_server_sg" {
   }
 
   ingress {
-    from_port   = 8080 # Example for Jenkins, Airflow UI
+    from_port   = 8080 # Example for Jenkins
     to_port     = 8080
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  ingress {
+    from_port   = 8081 # For Airflow UI
+    to_port     = 8081
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    }
 
   ingress {
     from_port   = 5000 # Example for MLflow UI
