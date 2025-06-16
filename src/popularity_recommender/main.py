@@ -119,7 +119,8 @@ async def load_and_preprocess_data():
 @app.on_event("startup")
 async def startup_event():
     logger.info("Recommendation engine starting up...")
-    await load_and_preprocess_data()
+    content_model = PopularityRecommender()
+    content_model.train(train_reviews, products_clean)
     logger.info("Recommendation engine startup complete.")
 
 # --- Recommendation Endpoint ---
