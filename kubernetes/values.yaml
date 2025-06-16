@@ -2895,3 +2895,10 @@ logs:
     ## the name of an existing PVC to use
     existingClaim:
 
+airflow:
+  extraPipPackages:
+    - minio
+    - pandas
+    - s3fs
+    - smart_open
+    - fsspec
