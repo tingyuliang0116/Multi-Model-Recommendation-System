@@ -10,4 +10,3 @@ class Config(object):
         "secure": False,
     }
 
-    POPULARITY_MODEL_ARTIFACT = ""
