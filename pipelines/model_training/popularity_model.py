@@ -2,12 +2,42 @@ import pandas as pd
 import io
 import os
 import tempfile
+import pickle
+import mlflow
+import mlflow.pyfunc
+from mlflow.tracking import MlflowClient
 from utility.minio.minio_utility import MinIOUtility
 from config.environment_config import Config
-import mlflow
-import pickle
+
 minio_utility = MinIOUtility()
 config = Config()
+
+
+class PopularityModelWrapper(mlflow.pyfunc.PythonModel):
+    def load_context(self, context):
+        with open(context.artifacts["popularity_scores"], "rb") as f:
+            self.popularity_scores = pickle.load(f)
+        with open(context.artifacts["product_stats"], "rb") as f:
+            self.product_stats = pickle.load(f)
+
+    def predict(self, context, model_input=None):
+        """Returns top-N popular products with full metadata"""
+        top_n = 10
+        if model_input is not None and 'top_n' in model_input.columns:
+            top_n = int(model_input['top_n'].iloc[0])
+
+        recommendations = self.popularity_scores.head(top_n).copy()
+
+        result = recommendations.merge(
+            self.product_stats,
+            on="product_id",
+            how="left"
+        )
+
+        return result[[
+            'product_id', 'title', 'brand', 'categories',
+            'avg_rating', 'review_count', 'popularity_score'
+        ]]
 
 
 class PopularityRecommender:
@@ -26,68 +56,45 @@ class PopularityRecommender:
             self.category, f"processed_{self.category}_reviews.parquet")
         reviews_data = reviews.read()
         reviews.close()
-        buffer = io.BytesIO(reviews_data)
-        reviews_df = pd.read_parquet(buffer)
+        reviews_df = pd.read_parquet(io.BytesIO(reviews_data))
 
         products = self.minio_client.get_object(
             self.category, f"processed_{self.category}_products.parquet")
         products_data = products.read()
         products.close()
-        buffer = io.BytesIO(products_data)
-        products_df = pd.read_parquet(buffer)
+        products_df = pd.read_parquet(io.BytesIO(products_data))
 
         return reviews_df, products_df
 
     def calculate_weighted_rating(self, reviews: pd.DataFrame):
-        """Calculate weighted rating using IMDB formula"""
-        # Calculate stats per product
-        product_stats = reviews.groupby('product_id').agg({
+        stats = reviews.groupby('product_id').agg({
             'rating': ['mean', 'count'],
             'helpful_votes': 'sum'
         }).round(4)
 
-        # Flatten column names
-        product_stats.columns = ['avg_rating',
-                                 'review_count', 'total_helpful_votes']
-        product_stats = product_stats.reset_index()
+        stats.columns = ['avg_rating', 'review_count', 'total_helpful_votes']
+        stats = stats.reset_index()
+        stats = stats[stats['review_count'] >= 5]
 
-        # Filter products with minimum reviews
-        product_stats = product_stats[product_stats['review_count']
-                                      >= 5]
+        C = stats['avg_rating'].mean()
+        m = stats['review_count'].quantile(0.8)
 
-        # Calculate weighted rating (IMDB formula)
-        # WR = (v/(v+m)) * R + (m/(v+m)) * C
-        # Where: v = votes, m = minimum votes, R = average rating, C = mean rating across all products
-
-        # Mean rating across all products
-        C = product_stats['avg_rating'].mean()
-        m = product_stats['review_count'].quantile(
-            0.8)  # 80th percentile of review counts
-
-        product_stats['weighted_rating'] = (
-            (product_stats['review_count'] / (product_stats['review_count'] + m)) * product_stats['avg_rating'] +
-            (m / (product_stats['review_count'] + m)) * C
+        stats['weighted_rating'] = (
+            (stats['review_count'] / (stats['review_count'] + m)) * stats['avg_rating'] +
+            (m / (stats['review_count'] + m)) * C
         )
 
-        return product_stats
+        return stats
 
-    def prepare_data(self, reviews: pd.DataFrame, products: pd.DataFrame) -> pd.DataFrame:
-        """Prepare and calculate popularity scores"""
-        # Calculate basic statistics
-        product_stats = self.calculate_weighted_rating(reviews)
+    def prepare_data(self, reviews: pd.DataFrame, products: pd.DataFrame):
+        stats = self.calculate_weighted_rating(reviews)
+        product_info = products[['product_id',
+                                 'title', 'categories', 'brand', 'price']]
+        stats = stats.merge(product_info, on='product_id', how='left')
+        return stats
 
-        # Add product information
-        product_info = products[['product_id', 'title',
-                                 'categories', 'brand', 'price']].copy()
-        product_stats = product_stats.merge(
-            product_info, on='product_id', how='left')
-
-        return product_stats
-
-    def train(self):
-        """Train popularity model"""
+    def train_and_register(self):
         with mlflow.start_run(run_name="popularity_recommender_training"):
-
             mlflow.log_param("recommendation_type", "popularity")
             reviews, products = self.load_data()
 
@@ -113,53 +120,51 @@ class PopularityRecommender:
                               self.popularity_scores['popularity_score'].min())
 
             with tempfile.TemporaryDirectory() as tmp_dir:
-                for name, df in {
-                    "popularity_scores.pkl": self.popularity_scores,
-                    "product_stats.pkl": self.product_stats
-                }.items():
-                    tmp_file_path = os.path.join(tmp_dir, name)
-                    with open(tmp_file_path, "wb") as f:
-                        pickle.dump(df, f)
+                scores_path = os.path.join(tmp_dir, "popularity_scores.pkl")
+                stats_path = os.path.join(tmp_dir, "product_stats.pkl")
 
-                mlflow.log_artifacts(tmp_dir, artifact_path="artifacts")
+                with open(scores_path, "wb") as f:
+                    pickle.dump(self.popularity_scores, f)
+                with open(stats_path, "wb") as f:
+                    pickle.dump(self.product_stats, f)
 
-            config.POPULARITY_MODEL_ARTIFACT = mlflow.get_artifact_uri("artifacts")
-            local_path = mlflow.artifacts.download_artifacts(config.POPULARITY_MODEL_ARTIFACT)
-            print(local_path)
+                artifacts = {
+                    "popularity_scores": scores_path,
+                    "product_stats": stats_path,
+                }
 
-            print(popularity_scores.head())
+                mlflow.pyfunc.log_model(
+                    artifact_path="popularity_model",
+                    python_model=PopularityModelWrapper(),
+                    artifacts=artifacts
+                )
+
+                model_uri = f"runs:/{mlflow.active_run().info.run_id}/popularity_model"
+                result = mlflow.register_model(model_uri, "PopularityRecommenderModel")
+                client = MlflowClient()
+                client.set_registered_model_alias("PopularityRecommenderModel", "champion", result.version)
 
             print(
                 f"Training completed - {len(self.popularity_scores)} products")
             print(
                 f"Top product score: {self.popularity_scores['popularity_score'].iloc[0]:.4f}")
 
-    def get_popular_products(self) -> pd.DataFrame:
-        """Get popular products with details"""
 
-        recommendations = self.popularity_scores.copy()
+class PopularityModelClient:
+    def __init__(self, model_name="PopularityRecommenderModel", alias="champion"):
+        self.model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}@{alias}")
 
-        # Return top N recommendations
-        top_recommendations = recommendations.head(10)
-        recommendations = [(row['product_id'], row['popularity_score'])
-                           for _, row in top_recommendations.iterrows()]
-
-        # Get product details
-        product_ids = [rec[0] for rec in recommendations]
-        product_details = self.product_stats[
-            self.product_stats['product_id'].isin(product_ids)
-        ].copy()
-
-        # Merge with popularity scores to maintain order
-        result = pd.DataFrame(recommendations, columns=[
-                              'product_id', 'popularity_score'])
-        result = result.merge(product_details, on='product_id', how='left')
-
-        return result[['product_id', 'title', 'brand', 'categories', 'avg_rating',
-                      'review_count', 'popularity_score']]
+    def get_popular_products(self):
+        return self.model._model_impl.python_model.get_popular_products()
 
 
 if __name__ == "__main__":
     mlflow.set_tracking_uri("http://127.0.0.1:5000")
-    mode = PopularityRecommender()
-    mode.train()
+    # TRAIN AND REGISTER MODEL
+    recommender = PopularityRecommender(category="fashion")
+    recommender.train_and_register()
+
+    # LOAD MODEL FROM REGISTRY
+    client = PopularityModelClient()
+    top_products = client.get_popular_products()
+    print(top_products)
