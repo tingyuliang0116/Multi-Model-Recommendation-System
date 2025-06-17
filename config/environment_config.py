@@ -9,3 +9,5 @@ class Config(object):
         "secret_key": "minioadmin",
         "secure": False,
     }
+
+    POPULARITY_MODEL_ARTIFACT = ""
