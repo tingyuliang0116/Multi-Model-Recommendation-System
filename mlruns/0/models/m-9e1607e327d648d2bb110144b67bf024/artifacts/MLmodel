@@ -1,0 +1,26 @@
+artifact_path: file:///Users/MichelleLiang/Desktop/Project/Multi-Model-Recommendation-System/mlruns/0/models/m-9e1607e327d648d2bb110144b67bf024/artifacts
+flavors:
+  python_function:
+    artifacts:
+      popularity_scores:
+        path: artifacts/popularity_scores.pkl
+        uri: /var/folders/kd/wyd_vsvs65190vkfq6ps_5yr0000gp/T/tmpb23amwnb/popularity_scores.pkl
+      product_stats:
+        path: artifacts/product_stats.pkl
+        uri: /var/folders/kd/wyd_vsvs65190vkfq6ps_5yr0000gp/T/tmpb23amwnb/product_stats.pkl
+    cloudpickle_version: 3.1.1
+    code: null
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.pyfunc.model
+    python_model: python_model.pkl
+    python_version: 3.11.0
+    streamable: false
+mlflow_version: 3.1.0
+model_id: m-9e1607e327d648d2bb110144b67bf024
+model_size_bytes: 837212
+model_uuid: m-9e1607e327d648d2bb110144b67bf024
+prompts: null
+run_id: 38e55a005a00480ab138ef67e5db9c3c
+utc_time_created: '2025-06-17 15:25:47.401035'

@@ -1,0 +1,10 @@
+artifact_location: file:///Users/MichelleLiang/Desktop/Project/Multi-Model-Recommendation-System/mlruns/0/models/m-9e1607e327d648d2bb110144b67bf024/artifacts
+creation_timestamp: 1750173947396
+experiment_id: '0'
+last_updated_timestamp: 1750173948820
+model_id: m-9e1607e327d648d2bb110144b67bf024
+model_type: null
+name: popularity_model
+source_run_id: 38e55a005a00480ab138ef67e5db9c3c
+status: 2
+status_message: null

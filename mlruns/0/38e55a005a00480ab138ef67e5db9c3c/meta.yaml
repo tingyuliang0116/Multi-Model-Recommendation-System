@@ -1,0 +1,14 @@
+artifact_uri: file:///Users/MichelleLiang/Desktop/Project/Multi-Model-Recommendation-System/mlruns/0/38e55a005a00480ab138ef67e5db9c3c/artifacts
+end_time: 1750173948871
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 38e55a005a00480ab138ef67e5db9c3c
+run_name: popularity_recommender_training
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1750173947127
+status: 3
+tags: []
+user_id: MichelleLiang

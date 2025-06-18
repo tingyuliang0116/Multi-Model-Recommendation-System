@@ -9,3 +9,4 @@ class Config(object):
         "secret_key": "minioadmin",
         "secure": False,
     }
+
