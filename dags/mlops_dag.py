@@ -1,5 +1,8 @@
 from airflow import DAG
 from pipelines.data_processor import DataProcessor
+from pipelines.model_training.collaborative_filter_model import CollaborativeFilteringRecommender
+from pipelines.model_training.content_based_model import ContentBasedRecommender
+from pipelines.model_training.popularity_model import PopularityRecommender
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import logging
@@ -9,6 +12,15 @@ logger = logging.getLogger(__name__)
 
 def get_processor():
     return DataProcessor()
+
+def get_collaborative_filtering_recommender():
+    return CollaborativeFilteringRecommender()
+
+def get_content_based_recommender():
+    return ContentBasedRecommender()
+
+def get_popularity_recommender():
+    return PopularityRecommender()
 
 with DAG(
     dag_id='data_preprocessing_pipeline',
@@ -83,4 +95,25 @@ with DAG(
         dag=dag
     )
 
-    [load_reviews, load_products] >> clean_data >> save_data
+    train_collaborative_model = PythonOperator(
+        tasak_id='train_collaborative_model',
+        python_callable = get_collaborative_filtering_recommender.train_and_register(),
+        provide_context=True,
+        dag=dag
+    )
+
+    train_content_model = PythonOperator(
+        tasak_id='train_content_model',
+        python_callable = get_content_based_recommender.train_and_register(),
+        provide_context=True,
+        dag=dag
+    )
+
+    train_popularity_model = PythonOperator(
+        tasak_id='train_popularity_model',
+        python_callable = get_popularity_recommender.train_and_register(),
+        provide_context=True,
+        dag=dag
+    )
+
+    [load_reviews, load_products] >> clean_data >> save_data >> [train_collaborative_model, train_content_model, train_popularity_model]
