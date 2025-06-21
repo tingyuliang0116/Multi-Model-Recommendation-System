@@ -1,0 +1,33 @@
+# FastAPI and Uvicorn
+fastapi==0.111.0
+uvicorn==0.30.1
+surprise==0.1
+numpy==1.26.4
+# MLflow Client
+mlflow==3.1.0
+pandas==2.3.0
+cloudpickle==3.1.1
+# S3-compatible (MinIO) filesystem for Pandas (s3fs, fsspec) and MLflow (boto3)
+s3fs==2025.5.1
+smart_open==7.0.4
+fsspec==2025.5.1 # Pin this to the version s3fs depends on or use what works for you
+minio==7.2.15 # For direct MinIO client interactions if needed, though s3fs handles most
+boto3==1.34.106 # MLflow's S3 artifact store backend
+botocore==1.34.106 # Dependency of boto3 and aiobotocore
+
+# Asynchronous HTTP client for aiobotocore (used by s3fs, boto3)
+aiohttp==3.9.5
+aiobotocore==2.13.0
+aioitertools==0.11.0 # Dependency of aiobotocore
+aiosignal==1.3.1 # Dependency of aiohttp
+frozenlist==1.4.1 # Dependency of aiohttp
+multidict==6.0.5 # Dependency of aiohttp
+yarl==1.9.4 # Dependency of aiohttp
+# async-timeout is usually pulled by aiohttp too, but can be added explicitly if needed
+
+# High-performance event loop for Uvicorn (optional, but good for production)
+uvloop==0.19.0
+
+# General build utilities that help pip resolve dependencies (good to include)
+wheel
+setuptools

@@ -8,7 +8,7 @@ from fastapi import FastAPI
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-app = FastAPI(title="Popularity-Based Recommendation Engine")
+app = FastAPI(title="Content-Based Recommendation Engine")
 
 
 LOADED_MODEL = None
@@ -19,6 +19,7 @@ MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 
 class RecommendationRequest(BaseModel):
     user_id: str | None = None  
+    product_id: str
     top_n: int = 10  
 
 
@@ -26,9 +27,7 @@ class ProductRecommendation(BaseModel):
     product_id: str
     title: str
     brand: str
-    avg_rating: float
-    review_count: int
-    popularity_score: float
+    similarity_score: float
 
 
 @app.on_event("startup")
@@ -40,12 +39,12 @@ async def startup_event():
     os.environ['AWS_ACCESS_KEY_ID'] = MINIO_ACCESS_KEY
     os.environ['AWS_SECRET_ACCESS_KEY'] = MINIO_SECRET_KEY
     LOADED_MODEL = mlflow.pyfunc.load_model(
-        model_uri=f"models:/PopularityRecommenderModel@champion")
+        model_uri=f"models:/ContentBasedModel@champion")
 
 
-@app.post("/recommend/popularity", response_model=list[ProductRecommendation])
-async def get_recommendations(request: RecommendationRequest):
-    model_input_df = pd.DataFrame({'top_n': [request.top_n]})
+@app.post("/recommend/content_based", response_model=list[ProductRecommendation])
+async def get_popularity_recommendations(request: RecommendationRequest):
+    model_input_df = pd.DataFrame({'top_n': [request.top_n],'product_id': [request.product_id]})
     recommendations_df = LOADED_MODEL.predict(pd.DataFrame(model_input_df))
 
     if recommendations_df.empty:
@@ -55,9 +54,7 @@ async def get_recommendations(request: RecommendationRequest):
         ProductRecommendation(
             product_id=row['product_id'],
             title=row['title'],
-            avg_rating=round(row['avg_rating'], 2),
-            review_count=int(row['review_count']),
-            popularity_score=round(row['popularity_score'], 2),
+            similarity_score=round(row['similarity_score'], 2),
             brand=row['brand'],
             category=row['categories']
         ) for _, row in recommendations_df.iterrows()
