@@ -1,0 +1,31 @@
+# kubernetes/messaging/rabbitmq-values.yaml
+
+# Basic RabbitMQ configuration
+fullnameOverride: "rabbitmq" # Shorter name for easier access
+
+# Admin credentials
+auth:
+  username: user
+  password: password # !!! IMPORTANT: CHANGE THIS PASSWORD !!!
+
+# Persistence for message queues (recommended for local stability)
+persistence:
+  enabled: true
+  size: 5Gi # Allocate 5GB for RabbitMQ data
+  storageClassName: standard
+
+# Enable management plugin for web UI (optional but useful)
+metrics:
+  enabled: true # Exposes Prometheus metrics
+rabbitmq:
+  managementPlugin:
+    enabled: true # Enables the management web UI
+
+# Expose RabbitMQ and its management UI via NodePort for local access
+service:
+  type: NodePort
+  ports:
+    amqp:
+      nodePort: 30006 # AMQP port (default 5672), choose a unique NodePort
+    http: # Management UI port (default 15672)
+      nodePort: 30007 # Choose a unique NodePort
