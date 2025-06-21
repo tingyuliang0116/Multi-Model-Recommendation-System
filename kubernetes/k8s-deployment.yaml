@@ -1,0 +1,469 @@
+# ===========================================
+# MinIO Deployment (Updated)
+# ===========================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minio-dev
+  labels:
+    name: minio-dev
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio-deployment
+  namespace: minio-dev
+  labels:
+    app: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - name: minio
+        image: quay.io/minio/minio:latest
+        command:
+        - /bin/bash
+        - -c
+        args:
+        - minio server /data --console-address :9001
+        env:
+        - name: MINIO_ACCESS_KEY
+          value: "minioadmin"
+        - name: MINIO_SECRET_KEY
+          value: "minioadmin"
+        ports:
+        - containerPort: 9000
+          name: api
+        - containerPort: 9001
+          name: console
+        volumeMounts:
+        - mountPath: /data
+          name: localvolume
+      volumes:
+      - name: localvolume
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+  namespace: minio-dev
+  labels:
+    app: minio
+spec:
+  selector:
+    app: minio
+  ports:
+  - name: api
+    port: 9000
+    targetPort: 9000
+    protocol: TCP
+  - name: console
+    port: 9001
+    targetPort: 9001
+    protocol: TCP
+  type: NodePort
+
+---
+# ===========================================
+# MLflow Deployment (Updated)
+# ===========================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mlflow
+  labels:
+    app: mlflow
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow-deployment
+  namespace: mlflow
+  labels:
+    app: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+      - name: mlflow
+        image: ghcr.io/mlflow/mlflow:latest
+        command: ["mlflow"]
+        args: ["server", "--host", "0.0.0.0", "--port", "5000",
+               "--backend-store-uri", "sqlite:///mlruns.db",
+               "--default-artifact-root", "s3://mlflow-artifacts"]
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          value: "minioadmin"
+        - name: AWS_SECRET_ACCESS_KEY
+          value: "minioadmin"
+        - name: MLFLOW_S3_ENDPOINT_URL
+          value: "http://minio-service.minio-dev.svc.cluster.local:9000"
+        ports:
+        - containerPort: 5000
+          name: http
+        volumeMounts:
+        - name: mlflow-db-storage
+          mountPath: "/mlruns.db-data"
+      volumes:
+      - name: mlflow-db-storage
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow-service
+  namespace: mlflow
+  labels:
+    app: mlflow
+spec:
+  selector:
+    app: mlflow
+  ports:
+  - port: 5000
+    targetPort: 5000
+    protocol: TCP
+    name: http
+  type: NodePort
+
+---
+# ===========================================
+# Recommendation Models Namespace
+# ===========================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: recommendation-models
+  labels:
+    app: recommendation-system
+
+---
+# Collaborative Filter Model - Updated
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: collaborative-filter-deployment
+  namespace: recommendation-models
+  labels:
+    app: collaborative-filter
+    model: recommendation
+spec:
+  replicas: 1  # Start with 1 replica to debug
+  selector:
+    matchLabels:
+      app: collaborative-filter
+  template:
+    metadata:
+      labels:
+        app: collaborative-filter
+        model: recommendation
+    spec:
+      containers:
+      - name: collaborative-filter
+        image: michelle0116/multi-model_recommendation-system:collaborative_filter
+        env:
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow-service.mlflow.svc.cluster.local:5000"
+        - name: MINIO_HOST
+          value: "minio-service.minio-dev.svc.cluster.local:9000"
+        - name: MINIO_ACCESS_KEY
+          value: "minioadmin"
+        - name: MINIO_SECRET_KEY
+          value: "minioadmin"
+        ports:
+        - containerPort: 8000
+          name: http
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        # Remove health checks for now since your app doesn't have /health endpoint
+        # Add startup probe to give more time for model loading
+        startupProbe:
+          httpGet:
+            path: /docs  # FastAPI automatically provides /docs endpoint
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30  # Give 5 minutes for startup (30 * 10 seconds)
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: collaborative-filter-service
+  namespace: recommendation-models
+  labels:
+    app: collaborative-filter
+spec:
+  selector:
+    app: collaborative-filter
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  type: ClusterIP
+
+---
+# Popularity Recommender Model - Updated
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: popularity-recommender-deployment
+  namespace: recommendation-models
+  labels:
+    app: popularity-recommender
+    model: recommendation
+spec:
+  replicas: 1  # Start with 1 replica to debug
+  selector:
+    matchLabels:
+      app: popularity-recommender
+  template:
+    metadata:
+      labels:
+        app: popularity-recommender
+        model: recommendation
+    spec:
+      containers:
+      - name: popularity-recommender
+        image: michelle0116/multi-model_recommendation-system:popularity_recommender
+        env:
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow-service.mlflow.svc.cluster.local:5000"
+        - name: MINIO_HOST
+          value: "minio-service.minio-dev.svc.cluster.local:9000"
+        - name: MINIO_ACCESS_KEY
+          value: "minioadmin"
+        - name: MINIO_SECRET_KEY
+          value: "minioadmin"
+        ports:
+        - containerPort: 8000
+          name: http
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        # Use startup probe instead of readiness/liveness
+        startupProbe:
+          httpGet:
+            path: /docs  # FastAPI automatically provides /docs endpoint
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30  # Give 5 minutes for startup
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: popularity-recommender-service
+  namespace: recommendation-models
+  labels:
+    app: popularity-recommender
+spec:
+  selector:
+    app: popularity-recommender
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  type: ClusterIP
+
+---
+#Content-Based Model - Updated
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: content-based-deployment
+  namespace: recommendation-models
+  labels:
+    app: content-based
+    model: recommendation
+spec:
+  replicas: 1  # Start with 1 replica to debug
+  selector:
+    matchLabels:
+      app: content-based
+  template:
+    metadata:
+      labels:
+        app: content-based
+        model: recommendation
+    spec:
+      containers:
+      - name: content-based
+        image: michelle0116/multi-model_recommendation-system:content-based
+        env:
+        - name: MLFLOW_TRACKING_URI
+          value: "http://mlflow-service.mlflow.svc.cluster.local:5000"
+        - name: MINIO_HOST
+          value: "minio-service.minio-dev.svc.cluster.local:9000"
+        - name: MINIO_ACCESS_KEY
+          value: "minioadmin"
+        - name: MINIO_SECRET_KEY
+          value: "minioadmin"
+        ports:
+        - containerPort: 8000
+          name: http
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        # Use startup probe instead of readiness/liveness
+        startupProbe:
+          httpGet:
+            path: /docs  # FastAPI automatically provides /docs endpoint
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30  # Give 5 minutes for startup
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: content-based-service
+  namespace: recommendation-models
+  labels:
+    app: content-based
+spec:
+  selector:
+    app: content-based
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+ type: ClusterIP
+
+---
+# ===========================================
+# API Gateway/Load Balancer (Optional)
+# ===========================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendation-gateway
+  namespace: recommendation-models
+  labels:
+    app: recommendation-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recommendation-gateway
+  template:
+    metadata:
+      labels:
+        app: recommendation-gateway
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-config
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: recommendation-models
+data:
+  default.conf: |
+    upstream collaborative_filter {
+        server collaborative-filter-service:8000;
+    }
+    
+    upstream popularity_recommender {
+        server popularity-recommender-service:8000;
+    }
+    
+    upstream content_based {
+        server content-based-service:8000;
+    }
+    
+    server {
+        listen 80;
+        
+        location /collaborative {
+            proxy_pass http://collaborative_filter;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+        
+        location /popularity {
+            proxy_pass http://popularity_recommender;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+        
+        location /content {
+            proxy_pass http://content_based;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+        
+        location /health {
+            return 200 "Gateway is healthy\n";
+            add_header Content-Type text/plain;
+        }
+    }
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: recommendation-gateway-service
+  namespace: recommendation-models
+  labels:
+    app: recommendation-gateway
+spec:
+  selector:
+    app: recommendation-gateway
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  type: LoadBalancer
