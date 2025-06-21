@@ -27,7 +27,7 @@ yarl==1.9.4 # Dependency of aiohttp
 
 # High-performance event loop for Uvicorn (optional, but good for production)
 uvloop==0.19.0
-
+prometheus_client==0.20.0
 # General build utilities that help pip resolve dependencies (good to include)
 wheel
 setuptools
