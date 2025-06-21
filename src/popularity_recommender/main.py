@@ -64,6 +64,7 @@ def measure_request_latency(app_name, endpoint_name):
 
 class RecommendationRequest(BaseModel):
     user_id: str | None = None
+    product_id : str | None = None
     top_n: int = 10
 
 
