@@ -1,14 +1,10 @@
-# 1. Namespace Definition
 apiVersion: v1
 kind: Namespace
 metadata:
   name: mlflow
   labels:
     app: mlflow
-
 ---
-
-# 2. MLflow Deployment Definition
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -49,10 +45,7 @@ spec:
       volumes:
       - name: mlflow-db-storage
         emptyDir: {}
-
 ---
-
-# 3. MLflow Service Definition
 apiVersion: v1
 kind: Service
 metadata:
@@ -65,7 +58,7 @@ spec:
     app: mlflow
   ports:
     - protocol: TCP
-      port: 5000 # The port the service exposes within the cluster
-      targetPort: 5000 # The port the mlflow container listens on
+      port: 5000
+      targetPort: 5000
       name: http
   type: NodePort

@@ -8,8 +8,8 @@ from fastapi import FastAPI
 from prometheus_client import generate_latest, Counter, Histogram, Gauge
 from prometheus_client.exposition import CONTENT_TYPE_LATEST
 from starlette.responses import Response
-from functools import wraps  # For decorator
-from time import perf_counter  # For decorator
+from functools import wraps  
+from time import perf_counter  
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -86,19 +86,16 @@ async def startup_event():
     MODEL_LOAD_TIME.labels(app_name="content_based",
                            model_name="all-MiniLM-L6-v2").set(perf_counter() - model_load_start_time)
     MODEL_LOAD_STATUS.labels(
-        # 1 for success
         app_name="content_based", model_name="all-MiniLM-L6-v2").set(1)
 
 
 @app.post("/recommend/content_based", response_model=list[ProductRecommendation])
-# <--- ADD THIS DECORATOR
 @measure_request_latency(app_name="content_based", endpoint_name="/recommend/content_based")
 async def get_popularity_recommendations(request: RecommendationRequest):
     model_input_df = pd.DataFrame(
         {'top_n': [request.top_n], 'product_id': [request.product_id]})
     recommendations_df = LOADED_MODEL.predict(pd.DataFrame(model_input_df))
     RECOMMENDATION_COUNT.labels(
-        # <--- ADD THIS COUNTER
         app_name="content_based", model_type="all-MiniLM-L6-v2").inc()
     REQUEST_COUNT.labels(
         app_name="content_based", method="POST", endpoint="/recommend/content_based", status_code=200
@@ -118,25 +115,18 @@ async def get_popularity_recommendations(request: RecommendationRequest):
 
 
 @app.get("/health")
-# <--- ADD THIS DECORATOR
 @measure_request_latency(app_name="content_based", endpoint_name="/health")
 async def health_check():
-    # Ensure your model_loaded check is still here
     REQUEST_COUNT.labels(
         app_name="pcontent_based", method="GET", endpoint="/health", status_code=200
     ).inc()
-    # Or LOADED_MODEL_CF for CF
     return {"status": "ok", "model_loaded": LOADED_MODEL is not None}
 
 
-# --- NEW: Prometheus Metrics Endpoint ---
 @app.get("/metrics")
 async def metrics():
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 if __name__ == "__main__":
     import uvicorn
-    # For local testing, ensure MinIO and MLflow are port-forwarded to localhost
-    # MinIO: kubectl port-forward svc/minio-service 9000:9000 -n minio
-    # MLflow: kubectl port-forward svc/mlflow-service 5000:5000 -n mlflow
     uvicorn.run(app, host="0.0.0.0", port=8000)

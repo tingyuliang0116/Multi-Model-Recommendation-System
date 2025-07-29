@@ -62,7 +62,7 @@ def measure_request_latency(app_name, endpoint_name):
 
 class RecommendationRequest(BaseModel):
     user_id: str
-    product_id : str | None = None
+    product_id: str | None = None
     top_n: int = 10
 
 
@@ -90,7 +90,7 @@ async def startup_event():
 
 
 @app.post("/recommend/collaborative_filtering", response_model=list[ProductRecommendation])
-@measure_request_latency(app_name="collaborative_filtering", endpoint_name="/recommend/collaborative_filtering") 
+@measure_request_latency(app_name="collaborative_filtering", endpoint_name="/recommend/collaborative_filtering")
 async def get_recommendations(request: RecommendationRequest):
     model_input_df = pd.DataFrame(
         {'top_n': [request.top_n], 'user_id': [request.user_id]})
@@ -114,14 +114,14 @@ async def get_recommendations(request: RecommendationRequest):
         ) for _, row in recommendations_df.iterrows()
     ]
 
+
 @app.get("/health")
-@measure_request_latency(app_name="collaborative_filtering", endpoint_name="/health") 
+@measure_request_latency(app_name="collaborative_filtering", endpoint_name="/health")
 async def health_check():
-    # Ensure your model_loaded check is still here
     REQUEST_COUNT.labels(
         app_name="collaborative_filtering", method="GET", endpoint="/health", status_code=200
     ).inc()
-    return {"status": "ok", "model_loaded": LOADED_MODEL is not None} 
+    return {"status": "ok", "model_loaded": LOADED_MODEL is not None}
 
 
 @app.get("/metrics")
@@ -131,7 +131,4 @@ async def metrics():
 
 if __name__ == "__main__":
     import uvicorn
-    # For local testing, ensure MinIO and MLflow are port-forwarded to localhost
-    # MinIO: kubectl port-forward svc/minio-service 9000:9000 -n minio
-    # MLflow: kubectl port-forward svc/mlflow-service 5000:5000 -n mlflow
     uvicorn.run(app, host="0.0.0.0", port=8000)

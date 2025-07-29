@@ -1,6 +1,3 @@
-# ===========================================
-# MinIO Deployment (Updated)
-# ===========================================
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -74,9 +71,6 @@ spec:
   type: NodePort
 
 ---
-# ===========================================
-# MLflow Deployment (Updated)
-# ===========================================
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -145,9 +139,6 @@ spec:
   type: NodePort
 
 ---
-# ===========================================
-# Recommendation Models Namespace
-# ===========================================
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -156,7 +147,6 @@ metadata:
     app: recommendation-system
 
 ---
-# Collaborative Filter Model - Updated
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -166,7 +156,7 @@ metadata:
     app: collaborative-filter
     model: recommendation
 spec:
-  replicas: 1  # Start with 1 replica to debug
+  replicas: 1  
   selector:
     matchLabels:
       app: collaborative-filter
@@ -198,16 +188,14 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "500m"
-        # Remove health checks for now since your app doesn't have /health endpoint
-        # Add startup probe to give more time for model loading
         startupProbe:
           httpGet:
-            path: /docs  # FastAPI automatically provides /docs endpoint
+            path: /docs  
             port: 8000
           initialDelaySeconds: 60
           periodSeconds: 10
           timeoutSeconds: 5
-          failureThreshold: 30  # Give 5 minutes for startup (30 * 10 seconds)
+          failureThreshold: 30  
 
 ---
 apiVersion: v1
@@ -228,7 +216,6 @@ spec:
   type: ClusterIP
 
 ---
-# Popularity Recommender Model - Updated
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -238,7 +225,7 @@ metadata:
     app: popularity-recommender
     model: recommendation
 spec:
-  replicas: 1  # Start with 1 replica to debug
+  replicas: 1  
   selector:
     matchLabels:
       app: popularity-recommender
@@ -270,15 +257,14 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "500m"
-        # Use startup probe instead of readiness/liveness
         startupProbe:
           httpGet:
-            path: /docs  # FastAPI automatically provides /docs endpoint
+            path: /docs  
             port: 8000
           initialDelaySeconds: 60
           periodSeconds: 10
           timeoutSeconds: 5
-          failureThreshold: 30  # Give 5 minutes for startup
+          failureThreshold: 30  
 
 ---
 apiVersion: v1
@@ -299,7 +285,6 @@ spec:
   type: ClusterIP
 
 ---
-#Content-Based Model - Updated
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -309,7 +294,7 @@ metadata:
     app: content-based
     model: recommendation
 spec:
-  replicas: 1  # Start with 1 replica to debug
+  replicas: 1  
   selector:
     matchLabels:
       app: content-based
@@ -341,15 +326,14 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "500m"
-        # Use startup probe instead of readiness/liveness
         startupProbe:
           httpGet:
-            path: /docs  # FastAPI automatically provides /docs endpoint
+            path: /docs 
             port: 8000
           initialDelaySeconds: 60
           periodSeconds: 10
           timeoutSeconds: 5
-          failureThreshold: 30  # Give 5 minutes for startup
+          failureThreshold: 30  
 
 ---
 apiVersion: v1
@@ -370,9 +354,6 @@ spec:
  type: ClusterIP
 
 ---
-# ===========================================
-# API Gateway/Load Balancer (Optional)
-# ===========================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -6,7 +6,7 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'git@github.com:tingyuliang0116/Multi-Model-Recommendation-System.git' // <-- MODIFIED LINE
-                sh 'ls -l' // List contents to confirm checkout
+                sh 'ls -l' 
             }
         }
         stage('Hello World') {

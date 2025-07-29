@@ -6,10 +6,8 @@ LABEL description="FastAPI service for Content-Based Recommendations"
 
 WORKDIR /app
 
-# Copy requirements first to leverage caching
 COPY requirements.txt .
 
-# ✅ Install system-level build dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     gcc \
@@ -18,15 +16,12 @@ RUN apt-get update && apt-get install -y \
     libatlas-base-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ENV for pip packages in local user directory
 ENV PATH="/home/appuser/.local/bin:${PATH}"
 
-# Instaldl Python packages
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
     rm -rf /root/.cache/pip
 
-# Copy application files
 COPY main.py .
 
 EXPOSE 8000

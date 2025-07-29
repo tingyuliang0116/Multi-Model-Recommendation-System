@@ -1,73 +1,52 @@
-# kubernetes/monitoring/prometheus-values.yaml
-
-# Enable Grafana and expose it via NodePort for easy local access
 grafana:
   enabled: true
   service:
-    type: NodePort # This exposes Grafana on a port on your Minikube node
-    nodePort: 30005 # Choose a unique NodePort (e.g., 30005). Change if conflicts.
-  adminPassword: prom-admin-pass # !!! IMPORTANT: CHANGE THIS TO A SECURE PASSWORD !!!
-  defaultDashboardsEnabled: true # Installs some useful default K8s dashboards
+    type: NodePort
+    nodePort: 30005
+  adminPassword: prom-admin-pass
+  defaultDashboardsEnabled: true
 
-# Enable Prometheus itself
 prometheus:
   enabled: true
   prometheusSpec:
-    # serviceMonitorSelectorNilUsesPods and podMonitorSelectorNilUsesPods
-    # are for automatically discovering targets. Set to false for stricter control,
-    # or true if you rely on broader auto-discovery.
     serviceMonitorSelectorNilUsesPods: false
     podMonitorSelectorNilUsesPods: false
-    # Define additional scrape configurations for your custom application metrics
-    # This tells Prometheus how to find and scrape your FastAPI services' /metrics endpoints.
     additionalScrapeConfigs:
-      - job_name: 'recommendation-services' # A name for this scraping job
-        # Discover targets using Kubernetes Pod Service Discovery
+      - job_name: 'recommendation-services'
         kubernetes_sd_configs:
           - role: pod
             namespaces:
-              names: ['recommendation-models'] # Scrape pods in your recommendation-models namespace
-        # Relabeling rules to process collected labels and set scrape parameters
+              names: ['recommendation-models']
         relabel_configs:
-          # Only scrape pods that have a port named 'http' or on a specific port.
-          # Or that explicitly enable scraping via annotation 'prometheus.io/scrape: "true"'.
-          # For simplicity, we'll try to match specific ports.
-          # If your FastAPI apps use different ports than 8000/8001/8002/8003, adjust.
           - source_labels: [__meta_kubernetes_pod_container_port_number]
-            regex: "8000|8001|8002|8003" # Match the port your FastAPI apps expose metrics on
-            action: keep # Keep only targets running on these ports
-          # Set the metrics path to /metrics (standard for prometheus_client)
+            regex: "8000|8001|8002|8003"
+            action: keep
           - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
             regex: (.+)
             target_label: __metrics_path__
             replacement: "$1"
             action: replace
-          - source_labels: [__address__] # Default path if no annotation is found
+          - source_labels: [__address__]
             regex: "(.+)"
             target_label: __metrics_path__
             replacement: "/metrics"
             action: replace
-          # Add application name label from Kubernetes pod labels
           - source_labels: [__meta_kubernetes_pod_label_app]
             regex: "(.+)"
             target_label: app_name
             replacement: "$1"
             action: replace
-          # Add model type label from Kubernetes pod labels
           - source_labels: [__meta_kubernetes_pod_label_model]
             regex: "(.+)"
             target_label: model_type
             replacement: "$1"
             action: replace
-      # You might need separate jobs if your services expose metrics on different named ports
-      # or require different authentication/paths.
 
-# Disable Alertmanager for simplicity in local development
 alertmanager:
   enabled: false
-# Enable kube-state-metrics to get metrics about Kubernetes objects (pods, deployments, etc.)
+
 kubeStateMetrics:
   enabled: true
-# Enable node-exporter to get host-level metrics (CPU, memory, disk usage of Minikube VM)
+
 nodeExporter:
   enabled: true
